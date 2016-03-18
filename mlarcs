@@ -1,0 +1,61 @@
+#!/usr/bin/env python3
+"""
+MLARCS
+
+Mailing List ARChive Search
+
+Download a mailing lists archives and have them available to search.
+"""
+import os
+import subprocess
+
+import bs4
+import requests
+
+
+def get_index_page(index_url):
+    r = requests.get(index_url)
+    soup = bs4.BeautifulSoup(r.content, "html.parser")
+    as_ = soup.findAll("a")
+    as_ = [a for a in as_ if 'Text' in a.text]
+    index = ["{}/{}".format(index_url, a.attrs['href']) for a in as_]
+    return index
+
+
+def download_archive(archive, archive_dir):
+    archive_name = os.path.join(archive_dir, archive['name'])
+    if not os.path.exists(archive_name):
+        os.mkdir(archive_name)
+
+    for url in archive['index']:
+        subprocess.check_call("wget {}".format(url), shell=True,
+                              universal_newlines=True, cwd=archive_name)
+
+
+def get_archive(archive, archive_dir):
+    archive['index'] = get_index_page(archive['index_url'])
+    download_archive(archive, archive_dir)
+
+
+def run(archives, archive_dir):
+    for archive in archives:
+        if __debug__:
+            print("Archive: {}".format(archive))
+        if not os.path.exists(archive_dir):
+            os.mkdir(archive_dir)
+        get_archive(archive, archive_dir)
+
+
+if __name__ == "__main__":
+    archives = [
+        {
+            'name': 'sge-gridengine-users',
+            'index_url': 'http://arc.liv.ac.uk/pipermail/gridengine-users',
+        },
+        {
+            'name': 'gridengine-users',
+            'index_url': 'http://gridengine.org/pipermail/users',
+        }
+    ]
+    archive_dir = "./archives"
+    run(archives, archive_dir)
